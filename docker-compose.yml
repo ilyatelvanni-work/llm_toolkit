@@ -1,0 +1,41 @@
+# version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: llm_toolkit/Dockerfile
+    environment:
+      - BACKEND_PORT=${BACKEND_PORT}
+    networks:
+      - internal_only
+    ports:
+      - ${BACKEND_PORT}:${BACKEND_PORT}
+    volumes:
+      - ./:/app
+    stop_grace_period: 2s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  react:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      - app
+    networks:
+      - internal_only
+    ports:
+      - ${FRONTEND_PORT}:${FRONTEND_PORT}
+    volumes:
+      - ./frontend/llm_toolkit_UI:/app
+      - /app/node_modules
+    environment:
+      - BACKEND_URI=http://localhost:${BACKEND_PORT}/api
+      - FRONTEND_PORT=${FRONTEND_PORT}
+    working_dir: /app
+    stop_grace_period: 2s
+
+networks:
+  internal_only:
+    driver: bridge

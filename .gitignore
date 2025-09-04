@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+*.sublime-project
+*.sublime-workspace
+*gitignore_me*
+*gitignoreme*
+llm_toolkit/dialog
