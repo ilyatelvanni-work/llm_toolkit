@@ -1,0 +1,12 @@
+import { getData } from '../utils/BackendConnector.ts';
+
+import Message from '../models/Message.ts';
+
+
+export default class DialogService {
+    static async makeDialog(thread_uid: string): Message[] {
+        const messages = await getData(`/threads/${thread_uid}/messages`);
+
+        return messages.map(msg => Message.fromDTO(msg))
+    }
+}
