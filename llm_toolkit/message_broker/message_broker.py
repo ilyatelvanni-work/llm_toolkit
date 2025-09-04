@@ -15,3 +15,7 @@ class MessageBroker(ABC):
         self, thread_uid: str | int, message_order: int
     ) -> Message:
         pass
+
+    @abstractmethod
+    async def get_thread_archiving_instruction(self, thread_uid: str | int) -> Message:
+        pass

@@ -45,6 +45,10 @@ async def get_thread_messages(thread_uid: str | int) -> list[Message]:
 async def get_thread_message_by_order(thread_uid: str | int, message_order: int) -> Message:
     return await dialog_manager.get_message_by_thread_uid_and_order(thread_uid, message_order)
 
+@app.get('/api/threads/{thread_uid}/instructions/archiving')
+async def get_thread_archiving_instruction(thread_uid: str | int) -> Message:
+    return await dialog_manager.get_thread_archiving_instruction(thread_uid)
+
 
 if __name__ == '__main__':
     uvicorn.run(app, host='0.0.0.0', port=os.environ.get('BACKEND_PORT'), reload=False)

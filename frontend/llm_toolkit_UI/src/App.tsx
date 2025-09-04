@@ -1,33 +1,27 @@
-import { useState, useMemo, useEffect } from 'react';
+import styled from 'styled-components';
+
 import reactLogo from './assets/react.svg';
 import viteLogo from '/vite.svg';
 import './App.css';
 
-import DialogService from './services/DialogService.ts';
 import Dialog from './components/Dialog.tsx';
+import Toolbar from './components/Toolbar.tsx';
 
 
 const THREAD_UID: string = 'dshdfbk';
 
+
+const Main = styled.div`
+    display: flex;
+`;
+
+
 function App() {
-    const [messages, setMessages] = useState(null);
-
-    useEffect(() => {
-        (async () => {
-            await Promise.all([
-                (async () => setMessages(await DialogService.makeDialog(THREAD_UID)))()
-            ])
-        })();
-    }, []);
-
-    if (messages === null) {
-        return <>loading...</>
-    }
-
     return (
-        <>
-            <Dialog messages={ messages } />
-        </>
+        <Main>
+            <Toolbar threadUID={ THREAD_UID } />
+            <Dialog threadUID={ THREAD_UID } />
+        </Main>
     )
 }
 

@@ -41,3 +41,7 @@ class FileMessageBroker(MessageBroker):
 
         with open(filepath, 'r') as fopen:
             return Message(thread_uid=thread_uid, order=message_order, role=Role(role), text=fopen.read())
+
+    async def get_thread_archiving_instruction(self, thread_uid: str | int) -> Message:
+        with open(self._storage_path / 'archiving_instruction.txt') as fopen:
+            return Message(thread_uid=thread_uid, order=0, role=Role.system, text=fopen.read())

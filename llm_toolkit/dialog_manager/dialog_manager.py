@@ -15,3 +15,6 @@ class DialogManager:
         self, thread_uid: str | int, message_order: int
     ) -> Message:
         return await self._message_broker.get_message_by_thread_uid_and_order(thread_uid, message_order)
+
+    async def get_thread_archiving_instruction(self, thread_uid: str | int) -> Message:
+        return await self._message_broker.get_thread_archiving_instruction(thread_uid)
