@@ -1,0 +1,5 @@
+gpt-5:
+    input: 0.625,
+    cached: 0.0625,
+    output: 5.00,
+    tokenization: "cl100k_base"

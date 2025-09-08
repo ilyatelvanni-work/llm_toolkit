@@ -18,3 +18,9 @@ class DialogManager:
 
     async def get_thread_archiving_instruction(self, thread_uid: str | int) -> Message:
         return await self._message_broker.get_thread_archiving_instruction(thread_uid)
+
+    async def compile_background(self, thread_uid: str | int, to_order: int) -> list[Message]:
+        return await self._message_broker.compile_background(thread_uid, to_order)
+
+    async def get_messages_by_orders_list(self, thread_uid: str | int, messages_orders: list[int]) -> list[Message]:
+        return await self._message_broker.get_messages_by_orders_list(thread_uid, messages_orders)

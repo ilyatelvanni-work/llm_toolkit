@@ -19,3 +19,11 @@ class MessageBroker(ABC):
     @abstractmethod
     async def get_thread_archiving_instruction(self, thread_uid: str | int) -> Message:
         pass
+
+    @abstractmethod
+    async def compile_background(self, thread_uid: str | int, to_order: int) -> list[Message]:
+        pass
+
+    @abstractmethod
+    async def get_messages_by_orders_list(self, thread_uid: str | int, messages_orders: list[int]) -> list[Message]:
+        pass

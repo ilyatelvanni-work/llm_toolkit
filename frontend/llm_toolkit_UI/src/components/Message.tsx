@@ -13,11 +13,23 @@ const Message = styled.div`
         width: 70%;
         margin-left: auto;
     }
+
+    &.selected {
+        background-color: #660;
+        color: black;
+        border-color: #FF0;
+    }
 `;
 
 
-export default function({ msg }: { msg: MessageModel }) {
-    return <Message className={ msg.role }>
+export default function(
+    { msg, selected, setSelection }: {
+        msg: MessageModel; selected: Boolean; setSelection: (selected: boolean) => void;
+    }
+) {
+    return <Message
+        className={ msg.role + (selected ? ' selected' : '') } onClick={ () => setSelection(!selected) }
+    >
         {msg.text}
     </Message>
 }

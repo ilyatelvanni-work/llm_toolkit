@@ -11,8 +11,9 @@ const DialogPanel = styled.div`
 `;
 
 
-export default function({ threadUID }: { threadUID: string }) {
+export default function({ threadUID }: { threadUID: string; }) {
     const [messages, setMessages] = useState(null);
+    const [selectedMsgs, setSelectedMsgs] = useState([]);
 
     useEffect(() => {
         (async () => {
@@ -22,13 +23,26 @@ export default function({ threadUID }: { threadUID: string }) {
         })();
     }, []);
 
+    const setMsgSelection = async (msgOrder: number, selected: Boolean) => {
+        if (selected) {
+            await setSelectedMsgs([ ...selectedMsgs, msgOrder ]);
+        } else {
+            await setSelectedMsgs(selectedMsgs.filter(selectedMsgOrder => selectedMsgOrder !== msgOrder));
+        }
+    }
+
     if (messages === null) {
         return <DialogPanel>loading...</DialogPanel>
     }
 
+    console.log(selectedMsgs)
+
     return <DialogPanel>
         {
-            messages.map(msg => <Message key={msg.order} msg={msg} />)
+            messages.map(msg => <Message
+                key={ msg.order } msg={ msg } selected={ selectedMsgs.indexOf(msg.order) !== -1 }
+                setSelection={ selected => setMsgSelection(msg.order, selected) }
+            />)
         }
     </DialogPanel>
 }

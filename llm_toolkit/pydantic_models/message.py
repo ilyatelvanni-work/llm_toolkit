@@ -14,3 +14,4 @@ class Message(BaseModel):
     order: int
     role: Role
     text: str
+    archive_for: list[int] | None = None
