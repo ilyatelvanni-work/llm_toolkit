@@ -25,7 +25,15 @@ export async function http_request(route, fetch_generator) {
 export async function getData(route, params) {
     const fetch_generator = (
         (route, params) => (async (requestUUID) => {
-            const request = `${route}?${new URLSearchParams(params)}`;
+            const paramsObj = params ?? {};
+
+            const queryString = Object.entries(paramsObj).flatMap(([key, value]) => 
+                    Array.isArray(value) ? value.map(
+                        v => `${encodeURIComponent(key)}=${encodeURIComponent(v)}`
+                    ) : `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+            ).join("&");
+
+            const request = `${route}?${queryString}`;
             console.log(`Request ${requestUUID} to server: ${BACKEND_URI}${request}`);
             return await fetch(`${BACKEND_URI}${request}`);
         })

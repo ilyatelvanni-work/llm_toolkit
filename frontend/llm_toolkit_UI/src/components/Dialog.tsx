@@ -1,19 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useContext, useEffect, useState } from 'react';
 
 import styled from 'styled-components';
 
 import MessageModel from '../models/Message.ts';
 import DialogService from '../services/DialogService.ts';
+import { ArchivingContext } from "../context/Dialog.tsx";
 import Message from './Message.tsx';
 
 
 const DialogPanel = styled.div`
+    flex: 1;
+    overflow-y: auto;
+    height: 100%;
+    padding: 16px;
 `;
 
 
 export default function({ threadUID }: { threadUID: string; }) {
     const [messages, setMessages] = useState(null);
-    const [selectedMsgs, setSelectedMsgs] = useState([]);
+    const {
+        selectedOrders: selectedMsgsOrders, setSelectedOrders: setSelectedMsgsOrders
+    } = useContext(ArchivingContext);
 
     useEffect(() => {
         (async () => {
@@ -25,9 +32,11 @@ export default function({ threadUID }: { threadUID: string; }) {
 
     const setMsgSelection = async (msgOrder: number, selected: Boolean) => {
         if (selected) {
-            await setSelectedMsgs([ ...selectedMsgs, msgOrder ]);
+            await setSelectedMsgsOrders([ ...selectedMsgsOrders, msgOrder ]);
         } else {
-            await setSelectedMsgs(selectedMsgs.filter(selectedMsgOrder => selectedMsgOrder !== msgOrder));
+            await setSelectedMsgsOrders(
+                selectedMsgsOrders.filter(selectedMsgOrder => selectedMsgOrder !== msgOrder)
+            );
         }
     }
 
@@ -35,12 +44,12 @@ export default function({ threadUID }: { threadUID: string; }) {
         return <DialogPanel>loading...</DialogPanel>
     }
 
-    console.log(selectedMsgs)
+    console.log(selectedMsgsOrders)
 
     return <DialogPanel>
         {
             messages.map(msg => <Message
-                key={ msg.order } msg={ msg } selected={ selectedMsgs.indexOf(msg.order) !== -1 }
+                key={ msg.order } msg={ msg } selected={ selectedMsgsOrders.indexOf(msg.order) !== -1 }
                 setSelection={ selected => setMsgSelection(msg.order, selected) }
             />)
         }

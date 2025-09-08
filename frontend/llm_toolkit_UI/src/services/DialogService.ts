@@ -10,8 +10,14 @@ export default class DialogService {
         return messages.map(msg => Message.fromDTO(msg));
     }
 
-    static async makeArchivingMessage(thread_uid: string): Message {
+    static async getArchivingInstructionMessage(thread_uid: string): Message {
         const message = await getData(`/threads/${thread_uid}/instructions/archiving`);
+
+        return Message.fromDTO(message);
+    }
+
+    static async suggestArchivingMessage(threadUID: string, msgOrders: number[]): Message {
+        const message = await getData(`/threads/${threadUID}/archives/suggest`, { messages_orders: msgOrders });
 
         return Message.fromDTO(message);
     }
