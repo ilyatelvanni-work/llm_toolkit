@@ -51,7 +51,7 @@ async def get_thread_message_by_order(thread_uid: str | int, message_order: int)
     try:
         return await dialog_manager.get_message_by_thread_uid_and_order(thread_uid, message_order)
     except DialogManagerError as err:
-        raise HTTPException(status_code=400, detail=str(err))
+        raise HTTPException(status_code=err.status_code, detail=str(err))
 
 @app.get('/api/threads/{thread_uid}/instructions/archiving')
 async def get_thread_archiving_instruction(thread_uid: str | int) -> Message:
