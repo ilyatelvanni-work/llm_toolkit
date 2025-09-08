@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Annotated, Iterable, Literal
 
 import uvicorn
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from llm_toolkit.dialog_manager import DialogManager
+from llm_toolkit.dialog_manager import DialogManager, DialogManagerError
 from llm_toolkit.llm_api import OpenAIAPI, MockLLMAPI
 from llm_toolkit.message_broker import FileMessageBroker
 from llm_toolkit.pydantic_models import Message
@@ -48,7 +48,10 @@ async def get_thread_messages(thread_uid: str | int) -> list[Message]:
 
 @app.get('/api/threads/{thread_uid}/messages/{message_order}')
 async def get_thread_message_by_order(thread_uid: str | int, message_order: int) -> Message:
-    return await dialog_manager.get_message_by_thread_uid_and_order(thread_uid, message_order)
+    try:
+        return await dialog_manager.get_message_by_thread_uid_and_order(thread_uid, message_order)
+    except DialogManagerError as err:
+        raise HTTPException(status_code=400, detail=str(err))
 
 @app.get('/api/threads/{thread_uid}/instructions/archiving')
 async def get_thread_archiving_instruction(thread_uid: str | int) -> Message:
@@ -67,8 +70,11 @@ async def suggest_archiving_message(thread_uid: str | int, messages_orders: Anno
 
     return response
 
-# @app.post('/api/threads/{thread_uid}/archives')
-# async def 
+@app.post('/api/threads/{thread_uid}/archives')
+async def post_archiving_message(thread_uid: str | int, archive_message: Message) -> Message:
+
+    await message_broker.set_archiving_message()
+    pass
 
 
 if __name__ == '__main__':

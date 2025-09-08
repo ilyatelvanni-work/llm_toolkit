@@ -1,6 +1,11 @@
+aiofile==3.9.0
 aiofiles==24.1.0
+aiopath==0.7.7
+aiopathlib==0.6.0
 annotated-types==0.7.0
 anyio==4.10.0
+asyncstdlib==3.13.1
+caio==0.9.24
 certifi==2025.8.3
 charset-normalizer==3.4.3
 click==8.2.1

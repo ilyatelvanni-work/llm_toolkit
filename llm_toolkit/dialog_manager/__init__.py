@@ -1,5 +1,10 @@
 from .dialog_manager import DialogManager
+from .exceptions import DialogManagerError, MessageIsNotFoundError, ThreadIsNotFoundError
+
 
 __all__ = [
-    'DialogManager'
+    'DialogManager',
+    'DialogManagerError',
+    'MessageIsNotFoundError',
+    'ThreadIsNotFoundError'
 ]

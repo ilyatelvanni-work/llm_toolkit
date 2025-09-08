@@ -27,3 +27,7 @@ class MessageBroker(ABC):
     @abstractmethod
     async def get_messages_by_orders_list(self, thread_uid: str | int, messages_orders: list[int]) -> list[Message]:
         pass
+
+    @abstractmethod
+    async def set_archiving_message(self, archiving_message: Message) -> Message:
+        pass

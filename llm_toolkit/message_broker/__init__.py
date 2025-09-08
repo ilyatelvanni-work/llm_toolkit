@@ -1,8 +1,12 @@
-from .message_broker import MessageBroker
+from .exceptions import MessageBrokerError, MessageIsNotFoundError, ThreadIsNotFoundError
 from .file_message_broker import FileMessageBroker
+from .message_broker import MessageBroker
 
 
 __all__ = [
     'FileMessageBroker',
-    'MessageBroker'
+    'MessageBroker',
+    'MessageBrokerError',
+    'MessageIsNotFoundError',
+    'ThreadIsNotFoundError'
 ]

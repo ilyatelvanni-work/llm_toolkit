@@ -7,6 +7,7 @@ class Role(StrEnum):
     assistant = 'assistant'
     user = 'user'
     system = 'system'
+    archive = 'archive'
 
 
 class Message(BaseModel):
