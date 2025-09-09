@@ -48,7 +48,7 @@ export default function({ threadUID }: { threadUID: string }) {
             threadUID, selectedMsgsOrdersForArchiving
         );
         if (confirm(archive_msg.text)) {
-            alert('Done');
+            await DialogService.storeMessages([ archive_msg ]);
         }
     }
 
