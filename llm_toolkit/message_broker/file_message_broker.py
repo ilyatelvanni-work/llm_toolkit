@@ -13,27 +13,46 @@ from .exceptions import MessageBrokerError, MessageIsNotFoundError
 
 @dataclass
 class MessageNode:
-    filepath: str
-    archive: str | None = None
+    message: Message | None = None
+    archive: Message | None = None
 
 
 class FileMessageBroker(MessageBroker):
 
-    # async def _build_fiesystem_cache(self, thread_uid: str | int) -> dict[int, list[MessageNode]]:
-    #     result: dict[int, list[MessageNode]] = {}
+    def _build_fiesystem_cache(self, thread_uid: str | int) -> dict[int, MessageNode]:
+        result: dict[int, MessageNode] = {}
 
-    #     async for filepath in self._get_iterator_for_message_pathfiles(thread_uid):
-    #         message = await self._get_message_from_file(thread_uid, filepath)
-    #         if message.order not in result:
-    #             result[message.order] = []
-    #         result[message.order].append(MessageNode(filepath, None))
+        for f in self._storage_path.iterdir():
+            if f.is_file() and f.name[:6].isdigit():
+                order, *args, role_raw = f.name.split('_')
+                int_order = int(order)
+                role = Role(role_raw.split('.')[0])
 
-    #     return result
+                if role == Role.archive:
+                    order_to, *_ = args
+                    archive_for = [ o for o in range(int_order, int(order_to) + 1) ]
+                else:
+                    archive_for = None
+
+                with open(f, 'r') as fopen:
+                    message = Message(
+                        thread_uid=thread_uid, order=int_order, role=Role(role), text=fopen.read(),
+                        archive_for=archive_for
+                    )
+                    if role == Role.archive:
+                        for index in message.archive_for:
+                            node = result.get(index, MessageNode())
+                            node.archive = message
+                            result[index] = node
+                    else:
+                        node = result.get(int_order, MessageNode())
+                        node.message = message
+                        result[int_order] = node
+        return result
 
     def __init__(self, storage_path: Path) -> None:
         self._storage_path = storage_path
-        # self._filesystem_cache: dict[int, list[MessageNode]] = {}
-        # asyncio.run(self._build_fiesystem_cache(''))
+        self._filesystem_cache: dict[int, MessageNode] = self._build_fiesystem_cache('')
         return super().__init__()
 
     async def _get_message_from_file(self, thread_uid: str | int, filepath: Path) -> Message:
@@ -42,7 +61,7 @@ class FileMessageBroker(MessageBroker):
 
         if role == Role.archive:
             order_to, *_ = args
-            archive_for = [ o for o in range(int(order), int(order_to) + 1) ]
+            archive_for = [ o for o in range(int_order, int(order_to) + 1) ]
         else:
             archive_for = None
 
@@ -83,27 +102,37 @@ class FileMessageBroker(MessageBroker):
         return await asyncio.gather(*[ self._get_message_from_file(thread_uid, filepath) for filepath in files ])
 
     async def get_message_by_thread_uid_and_order(self, thread_uid: str | int, order: int) -> Message:
-        for role in Role:
-            if role == Role.archive:
-                continue
+        if (order not in self._filesystem_cache):
+            raise MessageIsNotFoundError(thread_uid, order, True)
 
-            filepath = self._get_filepath_for_order_and_role(thread_uid, order, role)
-            try:
-                if await AsyncPath(filepath).exists():
-                    return await self._get_message_from_file(thread_uid, filepath)
-            except PermissionError:
-                pass
+        return self._filesystem_cache[order].message
 
-        raise MessageIsNotFoundError(thread_uid, order)
+        # for role in Role:
+        #     if role == Role.archive:
+        #         continue
+
+        #     filepath = self._get_filepath_for_order_and_role(thread_uid, order, role)
+        #     try:
+        #         if await AsyncPath(filepath).exists():
+        #             return await self._get_message_from_file(thread_uid, filepath)
+        #     except PermissionError:
+        #         pass
+
+        # raise MessageIsNotFoundError(thread_uid, order)
 
     async def get_archive_by_thread_uid_and_order(self, thread_uid: str | int, order: int) -> Message:
 
-        async for f in self._get_iterator_for_message_pathfiles(thread_uid):
-            if f.name.startswith(f'{order:06d}') and f.name[:6].isdigit() and f.name[7:13].isdigit():
-                filepath = self._get_filepath_for_order_and_role(thread_uid, order, Role.archive, int(f.name[7:13]))
-                return await self._get_message_from_file(thread_uid, filepath)
+        if (order not in self._filesystem_cache) or (self._filesystem_cache[order].archive is None):
+            raise MessageIsNotFoundError(thread_uid, order, True)
 
-        raise MessageIsNotFoundError(thread_uid, order, True)
+        return self._filesystem_cache[order].archive
+
+        # async for f in self._get_iterator_for_message_pathfiles(thread_uid):
+        #     if f.name.startswith(f'{order:06d}') and f.name[:6].isdigit() and f.name[7:13].isdigit():
+        #         filepath = self._get_filepath_for_order_and_role(thread_uid, order, Role.archive, int(f.name[7:13]))
+        #         return await self._get_message_from_file(thread_uid, filepath)
+
+        # raise MessageIsNotFoundError(thread_uid, order, True)
 
     async def get_thread_archiving_instruction(self, thread_uid: str | int) -> Message:
         with open(self._storage_path / 'archiving_instruction.txt') as fopen:
@@ -135,4 +164,8 @@ class FileMessageBroker(MessageBroker):
                 archiving_message.thread_uid, msg_id
             )
 
-        return await self._force_store_message(archiving_message)
+        await self._force_store_message(archiving_message)
+
+        self._filesystem_cache = self._build_fiesystem_cache(archiving_message.thread_uid)
+
+        return archiving_message
