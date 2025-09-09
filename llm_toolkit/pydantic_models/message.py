@@ -1,4 +1,5 @@
 from enum import StrEnum
+from dataclasses import dataclass
 
 from pydantic import BaseModel
 
@@ -16,3 +17,10 @@ class Message(BaseModel):
     role: Role
     text: str
     archive_for: list[int] | None = None
+
+
+@dataclass
+class SceneArchivingThread:
+    background: list[Message]
+    messages: list[Message]
+    archive: Message | None = None

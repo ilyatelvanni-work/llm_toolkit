@@ -1,7 +1,8 @@
-from .message import Message, Role
+from .message import Message, Role, SceneArchivingThread
 
 
 __all__ = [
     'Message',
-    'Role'
+    'Role',
+    'SceneArchivingThread'
 ]

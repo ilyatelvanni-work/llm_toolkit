@@ -8,6 +8,7 @@ services:
     environment:
       - BACKEND_PORT=${BACKEND_PORT}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LLM_PROXY_URI=${LLM_PROXY_URI}
     networks:
       - internal_only
     ports:

@@ -1,4 +1,5 @@
 import asyncio
+import itertools
 from dataclasses import dataclass
 from pathlib import Path
 from typing import AsyncIterator
@@ -6,7 +7,7 @@ from typing import AsyncIterator
 import aiofiles
 from aiopath import AsyncPath
 
-from ..pydantic_models import Message, Role
+from ..pydantic_models import Message, Role, SceneArchivingThread
 from .message_broker import MessageBroker
 from .exceptions import MessageBrokerError, MessageIsNotFoundError
 
@@ -138,11 +139,11 @@ class FileMessageBroker(MessageBroker):
         with open(self._storage_path / 'archiving_instruction.txt') as fopen:
             return Message(thread_uid=thread_uid, order=0, role=Role.system, text=fopen.read())
 
-    async def compile_background(self, thread_uid: str | int, to_order: int) -> list[Message]:
-        files = sorted(f for f in self._storage_path.iterdir() if f.is_file()
-                            and f.name[:6].isdigit() and int(f.name[:6]) < to_order)
+    # async def compile_background(self, thread_uid: str | int, to_order: int) -> list[Message]:
+    #     files = sorted(f for f in self._storage_path.iterdir() if f.is_file()
+    #                         and f.name[:6].isdigit() and int(f.name[:6]) < to_order)
 
-        return await asyncio.gather(*[ self._get_message_from_file(thread_uid, filepath) for filepath in files ])
+    #     return await asyncio.gather(*[ self._get_message_from_file(thread_uid, filepath) for filepath in files ])
 
     async def get_messages_by_orders_list(self, thread_uid: str | int, messages_orders: list[int]) -> list[Message]:
         files = sorted(f for f in self._storage_path.iterdir() if f.is_file()
@@ -169,3 +170,53 @@ class FileMessageBroker(MessageBroker):
         self._filesystem_cache = self._build_fiesystem_cache(archiving_message.thread_uid)
 
         return archiving_message
+
+    async def compile_few_shot_thread_by_index(
+        self, thread_uid: str | int, few_shots_index: int
+    ) -> SceneArchivingThread:
+        background: list[Message] = []
+
+        try:
+            for i in itertools.count(1):
+                async with aiofiles.open(
+                    self._storage_path / f'few_shots_background_{few_shots_index}_{i}.txt', 'r'
+                ) as fopen:
+                    background.append(Message(
+                        thread_uid=thread_uid, order=0, role=Role.assistant, text=await fopen.read()
+                    ))
+        except FileNotFoundError:
+            pass
+
+        current_scene: list[Message] = []
+        try:
+            for i in itertools.count(1):
+                async with aiofiles.open(
+                    self._storage_path / f'few_shots_request_{few_shots_index}_{i}.txt', 'r'
+                ) as fopen:
+                    current_scene.append(Message(
+                        thread_uid=thread_uid, order=0, role=Role.user, text=await fopen.read()
+                    ))
+
+                async with aiofiles.open(
+                    self._storage_path / f'few_shots_response_{few_shots_index}_{i}.txt', 'r'
+                ) as fopen:
+                    current_scene.append(Message(
+                        thread_uid=thread_uid, order=0, role=Role.assistant, text=await fopen.read()
+                    ))
+        except FileNotFoundError:
+            pass
+
+        async with aiofiles.open(
+            self._storage_path / f'few_shots_archive_{few_shots_index}.txt', 'r'
+        ) as fopen:
+            return SceneArchivingThread(
+                background=background,
+                messages=current_scene,
+                archive=Message(thread_uid=thread_uid, order=0, role=Role.archive, text=await fopen.read())
+            )
+
+    async def compile_few_shot_threads(self, thread_uid: str | int) -> list[SceneArchivingThread]:
+        return [
+            await self.compile_few_shot_thread_by_index(thread_uid, i) for i in range(1, 2)
+            # TODO: check how much shots do i actually have
+        ]

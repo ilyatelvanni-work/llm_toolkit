@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from ..pydantic_models import Message
+from ..pydantic_models import Message, SceneArchivingThread
 
 
 class MessageBroker(ABC):
@@ -20,8 +20,12 @@ class MessageBroker(ABC):
     async def get_thread_archiving_instruction(self, thread_uid: str | int) -> Message:
         pass
 
+    # @abstractmethod
+    # async def compile_background(self, thread_uid: str | int, to_order: int) -> list[Message]:
+    #     pass
+
     @abstractmethod
-    async def compile_background(self, thread_uid: str | int, to_order: int) -> list[Message]:
+    async def compile_few_shot_threads(self, thread_uid: str | int) -> list[SceneArchivingThread]:
         pass
 
     @abstractmethod

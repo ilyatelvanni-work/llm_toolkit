@@ -1,3 +1,4 @@
+
 class MessageBrokerError(BaseException):
     pass
 

@@ -49,6 +49,7 @@ export default function({ threadUID }: { threadUID: string }) {
         );
         if (confirm(archive_msg.text)) {
             await DialogService.storeMessages([ archive_msg ]);
+            window.location.reload();
         }
     }
 

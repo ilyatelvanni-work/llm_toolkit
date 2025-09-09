@@ -8,9 +8,9 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from llm_toolkit.dialog_manager import DialogManager, DialogManagerError
-from llm_toolkit.llm_api import OpenAIAPI, MockLLMAPI
+from llm_toolkit.llm_api import MockLLMAPI, OpenAIAPI
 from llm_toolkit.message_broker import FileMessageBroker
-from llm_toolkit.pydantic_models import Message, Role
+from llm_toolkit.pydantic_models import Message, Role, SceneArchivingThread
 from llm_toolkit.utils import config as _CONFIG
 
 
@@ -20,7 +20,9 @@ dialog_manager = DialogManager(message_broker = message_broker)
 
 openai_api_key = os.environ.get('OPENAI_API_KEY')
 assert openai_api_key, "There's no OpenAI API key provided"
-llm_api = OpenAIAPI(api_key = _CONFIG.get_openai_api_key()) if False else MockLLMAPI()
+llm_api = OpenAIAPI(
+    api_key = _CONFIG.get_openai_api_key(), proxy_uri=os.environ.get('LLM_PROXY_URI')
+) if True else MockLLMAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -59,13 +61,12 @@ async def get_thread_archiving_instruction(thread_uid: str | int) -> Message:
 
 @app.get('/api/threads/{thread_uid}/archives/suggest')
 async def suggest_archiving_message(thread_uid: str | int, messages_orders: Annotated[list[int], Query()]) -> Message:
-
-    background_subthread = await dialog_manager.compile_background(thread_uid, min(messages_orders))
-    messages_to_archive = await dialog_manager.get_messages_by_orders_list(thread_uid, messages_orders)
     archiving_instruction = await dialog_manager.get_thread_archiving_instruction(thread_uid)
+    few_shots_threads = await dialog_manager.compile_few_shot_threads(thread_uid)
+    current_scene_thread = await dialog_manager.compile_current_scene_thread(thread_uid, messages_orders)
 
     response = await llm_api.get_archving_message(
-        archiving_instruction, background_subthread, messages_to_archive
+        archiving_instruction, current_scene_thread, few_shots_threads
     )
 
     return response
