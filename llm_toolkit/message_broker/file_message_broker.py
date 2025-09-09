@@ -7,7 +7,7 @@ from aiopath import AsyncPath
 
 from ..pydantic_models import Message, Role
 from .message_broker import MessageBroker
-from .exceptions import MessageIsNotFoundError
+from .exceptions import MessageBrokerError, MessageIsNotFoundError
 
 
 class FileMessageBroker(MessageBroker):
@@ -28,8 +28,26 @@ class FileMessageBroker(MessageBroker):
             if await f.is_file() and f.name[:6].isdigit():
                 yield Path(f)
 
-    def _get_filepath_for_order_and_role(self, thread_uid: str | int, order: int, role: Role) -> Path:
-        return Path(self._storage_path / f'{order:06d}_{role.value}.txt')
+    def _get_filepath_for_order_and_role(
+        self, thread_uid: str | int, order: int, role: Role, order_to: int | None = None
+    ) -> Path:
+        if role != role.archive:
+            return Path(self._storage_path / f'{order:06d}_{role.value}.txt')
+        else:
+            return Path(self._storage_path / f'{order:06d}_{order_to:06d}_{role.value}.txt')
+
+    def _get_filepath_for_message(self, message: Message) -> Path:
+        # if message.role == Role.archive and message.archive_for is None:
+        #     raise MessageBrokerError("Trying to make archive message with null in 'archive_for'")
+
+        return self._get_filepath_for_order_and_role(
+            message.thread_uid, message.order, message.role,
+            max(message.archive_for) if message.archive_for else None
+        )
+
+    async def _force_store_message(self, message: Message):
+        async with aiofiles.open(self._get_filepath_for_message(message), 'w') as fopen:
+            await fopen.write(message.text)
 
     async def get_messages_by_thread_uid(self, thread_uid: str | int) -> list[Message]:
         files = sorted(f for f in [ f async for f in self._get_iterator_for_message_pathfiles(thread_uid) ])
@@ -37,6 +55,9 @@ class FileMessageBroker(MessageBroker):
 
     async def get_message_by_thread_uid_and_order(self, thread_uid: str | int, order: int) -> Message:
         for role in Role:
+            if role == Role.archive:
+                continue
+
             filepath = self._get_filepath_for_order_and_role(thread_uid, order, role)
             try:
                 if await AsyncPath(filepath).exists():
@@ -63,6 +84,17 @@ class FileMessageBroker(MessageBroker):
         return await asyncio.gather(*[ self._get_message_from_file(thread_uid, filepath) for filepath in files ])
 
     async def set_archiving_message(self, archiving_message: Message) -> Message:
-        for msg in archiving_message.archiving_for:
-            pass
 
+        msg_by_id_hash: dict[int, Message] = {}
+
+        if archiving_message.archive_for is None:
+            raise MessageBrokerError("Trying to make archive message with null in 'archive_for'")
+        
+        # check if message we archive exist
+        for msg_id in archiving_message.archive_for:
+            # if not, MessageIsNotFoundError is raised here
+            msg_by_id_hash[msg_id] = await self.get_message_by_thread_uid_and_order(
+                archiving_message.thread_uid, msg_id
+            )
+
+        return await self._force_store_message(archiving_message)

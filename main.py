@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from llm_toolkit.dialog_manager import DialogManager, DialogManagerError
 from llm_toolkit.llm_api import OpenAIAPI, MockLLMAPI
 from llm_toolkit.message_broker import FileMessageBroker
-from llm_toolkit.pydantic_models import Message
+from llm_toolkit.pydantic_models import Message, Role
 from llm_toolkit.utils import config as _CONFIG
 
 
@@ -70,12 +70,19 @@ async def suggest_archiving_message(thread_uid: str | int, messages_orders: Anno
 
     return response
 
-@app.post('/api/threads/{thread_uid}/archives')
-async def post_archiving_message(thread_uid: str | int, archive_message: Message) -> Message:
+@app.post('/api/threads/{thread_uid}/messages')
+async def post_archiving_message(thread_uid: str | int, messages: list[Message]) -> list[Message]:
+    if any(msg.thread_uid != thread_uid for msg in messages):
+        raise HTTPException(status_code=409, detail='Some message and route thread_uid are not equal')
 
-    await message_broker.set_archiving_message()
-    pass
+    for msg in messages:
+        if msg.role == Role.archive:
+            await message_broker.set_archiving_message(msg)
+        else:
+            raise HTTPException(status_code=400, detail=f"There's no handler for {msg.role} yet")
+
+    return messages
 
 
 if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=int(os.environ.get('BACKEND_PORT')), reload=False)
+    uvicorn.run(app, host='0.0.0.0', port=_CONFIG.get_uvicorn_port(), reload=False)

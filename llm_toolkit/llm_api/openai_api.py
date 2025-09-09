@@ -19,22 +19,19 @@ from .llm_api import LLMAPI
 
 
 class OpenAIAPI(LLMAPI):
-    def __init__(self, api_key: str, model: str = 'gpt-5', url: str | None = None,
-             store_logs: str | None = 'http_full_logs', proxy_uri: str | None = None) -> None:
+    def __init__(self, api_key: str, model: str = 'gpt-5', url: str = '',
+                 store_logs: str | None = 'http_full_logs', proxy_uri: str | None = None) -> None:
+
         custom_client = httpx.AsyncClient(
             event_hooks={
                 "request": [partial(log_request, store_logs)],
                 "response": [partial(log_response, store_logs)],
             },
-            **({'base_url': url} if url else {}),
-            **({'transport': httpx.AsyncHTTPTransport(proxy=proxy_uri)} if proxy_uri else {})
+            base_url=url,
+            transport=httpx.AsyncHTTPTransport(proxy=proxy_uri) if proxy_uri else None
         ) if store_logs else None
 
-        self._client = AsyncOpenAI(
-            api_key=api_key,
-            **({'base_url': url} if url else {}),
-            **({'http_client': custom_client} if custom_client else {})
-        )
+        self._client = AsyncOpenAI(api_key=api_key, base_url=url, http_client=custom_client)
 
         with open(Path(__file__).parent / 'model_prices.yml', 'r') as cfg_fopen:
             MODEL_PRICES: dict[str, dict[str, str | int]] = yaml.safe_load(cfg_fopen.read())
@@ -46,32 +43,14 @@ class OpenAIAPI(LLMAPI):
         assert self._model_price_for_one_token_input is not None
         assert self._model_price_for_one_token_cached is not None
         assert self._model_price_for_one_token_output is not None
-        self._encoding = tiktoken.get_encoding(self._tokenization_encoding_rule_for_model)
-
+        assert self._tokenization_encoding_rule_for_model is not None
+        self._encoding = tiktoken.get_encoding(str(self._tokenization_encoding_rule_for_model))
 
     async def get_archving_message(
         self, archiving_instruction: Message, background: list[Message], messages_to_archive: list[Message],
         few_shots: list[Message] | None = None
     ) -> Message:
         pass
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # class OpenAIAPI(LLMAPI):
 

@@ -9,7 +9,7 @@ from typing import Any
 import aiofiles
 
 
-def build_curl(method: str, url: str, headers: dict[str, str], body: Any = None):
+def build_curl(method: str, url: str, headers: httpx.Headers, body: Any = None):
     curl_parts = [f'curl -X {method} \\']
 
     for k, v in headers.items():
@@ -22,7 +22,7 @@ def build_curl(method: str, url: str, headers: dict[str, str], body: Any = None)
     return '\n'.join(curl_parts)
 
 
-def build_readible_response(status_code: str, headers: dict[str, str], body: Any) -> str:
+def build_readible_response(status_code: str | int, headers: httpx.Headers, body: Any) -> str:
     respstring_parts = [f'STATUS: {status_code}']
     if headers:
         respstring_parts.append('HEADERS:')
@@ -35,7 +35,7 @@ def build_readible_response(status_code: str, headers: dict[str, str], body: Any
     return '\n'.join(respstring_parts)
 
 
-def build_response_json(status_code: str, headers: dict[str, str], body: Any) -> str:
+def build_response_json(status_code: str | int, headers: httpx.Headers, body: Any) -> str:
     return json.dumps({
         'status_code': status_code,
         'headers': dict(headers),
