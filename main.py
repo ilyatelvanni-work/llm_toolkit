@@ -83,6 +83,10 @@ async def post_archiving_message(thread_uid: str | int, messages: list[Message])
 
     return messages
 
+@app.get('/api/threads/{thread_uid}/compiled')
+async def get_compiled_threads_messages(thread_uid: str | int) -> list[Message]:
+    return await dialog_manager.compile_and_get_thread(thread_uid)
+
 
 if __name__ == '__main__':
     uvicorn.run(app, host='0.0.0.0', port=_CONFIG.get_uvicorn_port(), reload=False)

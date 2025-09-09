@@ -5,7 +5,7 @@ import Message from '../models/Message.ts';
 
 export default class DialogService {
     static async makeDialog(thread_uid: string): Message[] {
-        const messages = await getData(`/threads/${thread_uid}/messages`);
+        const messages = await getData(`/threads/${thread_uid}/compiled`);
 
         return messages.map(msg => Message.fromDTO(msg));
     }

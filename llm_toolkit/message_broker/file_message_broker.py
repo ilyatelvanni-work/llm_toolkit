@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass
 from pathlib import Path
 from typing import AsyncIterator
 
@@ -10,18 +11,46 @@ from .message_broker import MessageBroker
 from .exceptions import MessageBrokerError, MessageIsNotFoundError
 
 
+@dataclass
+class MessageNode:
+    filepath: str
+    archive: str | None = None
+
+
 class FileMessageBroker(MessageBroker):
+
+    # async def _build_fiesystem_cache(self, thread_uid: str | int) -> dict[int, list[MessageNode]]:
+    #     result: dict[int, list[MessageNode]] = {}
+
+    #     async for filepath in self._get_iterator_for_message_pathfiles(thread_uid):
+    #         message = await self._get_message_from_file(thread_uid, filepath)
+    #         if message.order not in result:
+    #             result[message.order] = []
+    #         result[message.order].append(MessageNode(filepath, None))
+
+    #     return result
 
     def __init__(self, storage_path: Path) -> None:
         self._storage_path = storage_path
+        # self._filesystem_cache: dict[int, list[MessageNode]] = {}
+        # asyncio.run(self._build_fiesystem_cache(''))
         return super().__init__()
 
     async def _get_message_from_file(self, thread_uid: str | int, filepath: Path) -> Message:
-        order, role = filepath.name.split('.')[0].split('_')
+        order, *args, role = filepath.name.split('.')[0].split('_')
         int_order = int(order)
 
+        if role == Role.archive:
+            order_to, *_ = args
+            archive_for = [ o for o in range(int(order), int(order_to) + 1) ]
+        else:
+            archive_for = None
+
         async with aiofiles.open(filepath, 'r') as fopen:
-            return Message(thread_uid=thread_uid, order=int_order, role=Role(role), text=await fopen.read())
+            return Message(
+                thread_uid=thread_uid, order=int_order, role=Role(role), text=await fopen.read(),
+                archive_for=archive_for
+            )
 
     async def _get_iterator_for_message_pathfiles(self, thread_uid: str | int) -> AsyncIterator[Path]:
         async for f in AsyncPath(self._storage_path).iterdir():
@@ -66,6 +95,15 @@ class FileMessageBroker(MessageBroker):
                 pass
 
         raise MessageIsNotFoundError(thread_uid, order)
+
+    async def get_archive_by_thread_uid_and_order(self, thread_uid: str | int, order: int) -> Message:
+
+        async for f in self._get_iterator_for_message_pathfiles(thread_uid):
+            if f.name.startswith(f'{order:06d}') and f.name[:6].isdigit() and f.name[7:13].isdigit():
+                filepath = self._get_filepath_for_order_and_role(thread_uid, order, Role.archive, int(f.name[7:13]))
+                return await self._get_message_from_file(thread_uid, filepath)
+
+        raise MessageIsNotFoundError(thread_uid, order, True)
 
     async def get_thread_archiving_instruction(self, thread_uid: str | int) -> Message:
         with open(self._storage_path / 'archiving_instruction.txt') as fopen:
