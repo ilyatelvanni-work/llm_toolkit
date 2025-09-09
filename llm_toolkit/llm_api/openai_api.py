@@ -82,7 +82,8 @@ class OpenAIAPI(LLMAPI):
         assert gpt_messages
 
         response = await self._client.chat.completions.create(
-            model=self._model, messages=gpt_messages  # , functions=functions, function_call=function_call
+            model=self._model, messages=gpt_messages  # type: ignore[arg-type]
+            # , functions=functions, function_call=function_call
         )
 
         assert len(response.choices) == 1

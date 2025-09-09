@@ -41,6 +41,7 @@ class FileMessageBroker(MessageBroker):
                         archive_for=archive_for
                     )
                     if role == Role.archive:
+                        assert message.archive_for
                         for index in message.archive_for:
                             node = result.get(index, MessageNode())
                             node.archive = message
@@ -106,7 +107,9 @@ class FileMessageBroker(MessageBroker):
         if (order not in self._filesystem_cache):
             raise MessageIsNotFoundError(thread_uid, order, True)
 
-        return self._filesystem_cache[order].message
+        msg = self._filesystem_cache[order].message
+        assert msg is not None
+        return msg
 
         # for role in Role:
         #     if role == Role.archive:
@@ -126,7 +129,9 @@ class FileMessageBroker(MessageBroker):
         if (order not in self._filesystem_cache) or (self._filesystem_cache[order].archive is None):
             raise MessageIsNotFoundError(thread_uid, order, True)
 
-        return self._filesystem_cache[order].archive
+        msg = self._filesystem_cache[order].archive
+        assert msg is not None
+        return msg
 
         # async for f in self._get_iterator_for_message_pathfiles(thread_uid):
         #     if f.name.startswith(f'{order:06d}') and f.name[:6].isdigit() and f.name[7:13].isdigit():

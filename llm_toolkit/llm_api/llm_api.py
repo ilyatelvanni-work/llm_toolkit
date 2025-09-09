@@ -1,19 +1,22 @@
 import itertools
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Literal, TypedDict
+from typing import cast, Literal, TypedDict
 
 from llm_toolkit.pydantic_models import Message, Role, SceneArchivingThread
 from .exceptions import LLMAPIError
 
 
+LLMAPIRole = Literal['system', 'user', 'assistant']
+
+
 class _LLMMessage(TypedDict):
-    role: Literal['system', 'user', 'assistant']
+    role: LLMAPIRole
     content: str
 
 
 class _LLMResponse(TypedDict):
-    role: Literal['system', 'user', 'assistant']
+    role: LLMAPIRole
     content: str
 
 
@@ -68,11 +71,11 @@ class LLMAPI(ABC):
         if role not in (Role.assistant, Role.user, Role.system):
             raise LLMAPIError(f'Can not handle {message.role.value} role message by OpenAI API')
 
-        return { 'role': role.value, 'content': message.text }
+        return { 'role': cast(LLMAPIRole, role.value), 'content': message.text }
 
     @classmethod
     def join_messages_seq_to_gpt_msg(cls, messages: list[Message], role: Role) -> _LLMMessage:
         return {
-            'role': role.value,
+            'role': cast(LLMAPIRole, role.value),
             'content': '\n\n'.join((cls.msg_to_gpt_dict(msg)['content'] for msg in messages))
         }

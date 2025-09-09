@@ -79,6 +79,7 @@ class DialogManager:
             message = compiled_messages[order]
             thread.append(message)
             if message.role == Role.archive:
+                assert message.archive_for
                 order = max(message.archive_for)
 
         return thread
