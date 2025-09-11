@@ -24,6 +24,20 @@ class MessageBroker(ABC):
     async def get_thread_archiving_instruction(self, thread_uid: str | int) -> Message:
         pass
 
+    @abstractmethod
+    async def get_thread_analysis_instruction(self, thread_uid: str | int) -> Message:
+        pass
+
+    @abstractmethod
+    async def get_thread_hidden_context_creation_instruction(self, thread_uid: str | int) -> Message:
+        pass
+
+    @abstractmethod
+    async def get_origin_thread(
+        self, thread_uid: str | int, order_from: int = 0, order_to: int | None = None
+    ) -> list[Message]:
+        pass
+
     # @abstractmethod
     # async def compile_background(self, thread_uid: str | int, to_order: int) -> list[Message]:
     #     pass
@@ -38,4 +52,16 @@ class MessageBroker(ABC):
 
     @abstractmethod
     async def set_archiving_message(self, archiving_message: Message) -> Message:
+        pass
+
+    @abstractmethod
+    async def store_hidden_context_message(self, hidden_context_message: Message) -> None:
+        pass
+
+    @abstractmethod
+    async def get_thread_hidden_context_consistency_check_instruciton(self, thread_uid: str | int) -> Message:
+        pass
+
+    @abstractmethod
+    async def get_hidden_context_message(self, thread_uid: str | int) -> Message:
         pass

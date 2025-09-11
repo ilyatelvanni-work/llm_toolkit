@@ -27,8 +27,10 @@ def get_uvicorn_port() -> int:
         try:
             backend_port_str = os.environ.get('BACKEND_PORT')
 
-            if UVICORN_PORT is None:
+            if backend_port_str is None:
                 raise ConfigValueException("There's no backend port provided")
+
+            UVICORN_PORT = int(backend_port_str)
 
         except ValueError:
             raise ConfigValueException(f"Wrong backend port value provided: '{backend_port_str}'")

@@ -83,3 +83,20 @@ class DialogManager:
                 order = max(message.archive_for)
 
         return thread
+
+    async def get_thread_analysis_instruction(self, thread_uid: str | int) -> Message:
+        return await self._message_broker.get_thread_analysis_instruction(thread_uid)
+
+    async def get_origin_thread(
+        self, thread_uid: str | int, order_from: int = 0, order_to: int | None = None
+    ) -> list[Message]:
+        return await self._message_broker.get_origin_thread(thread_uid, order_from, order_to)
+
+    async def get_thread_hidden_context_creation_instruction(self, thread_uid: str | int) -> Message:
+        return await self._message_broker.get_thread_hidden_context_creation_instruction(thread_uid)
+
+    async def get_thread_hidden_context_consistency_check_instruciton(self, thread_uid: str | int) -> Message:
+        return await self._message_broker.get_thread_hidden_context_consistency_check_instruciton(thread_uid)
+
+    async def get_hidden_context_message(self, thread_uid: str | int) -> Message:
+        return await self._message_broker.get_hidden_context_message(thread_uid)

@@ -1,18 +1,19 @@
 import datetime as dt
 import os
+import uvicorn
+from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated, Iterable, Literal
 
-import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from llm_toolkit.dialog_manager import DialogManager, DialogManagerError
 from llm_toolkit.llm_api import MockLLMAPI, OpenAIAPI
 from llm_toolkit.message_broker import FileMessageBroker
 from llm_toolkit.pydantic_models import Message, Role, SceneArchivingThread
 from llm_toolkit.utils import config as _CONFIG
-
 
 app = FastAPI()
 message_broker = FileMessageBroker(storage_path = Path(__file__).parent / 'llm_toolkit' / 'dialog')
@@ -22,7 +23,7 @@ openai_api_key = os.environ.get('OPENAI_API_KEY')
 assert openai_api_key, "There's no OpenAI API key provided"
 llm_api = OpenAIAPI(
     api_key = _CONFIG.get_openai_api_key(), proxy_uri=os.environ.get('LLM_PROXY_URI')
-) if True else MockLLMAPI()
+) if False else MockLLMAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -88,6 +89,60 @@ async def post_archiving_message(thread_uid: str | int, messages: list[Message])
 async def get_compiled_threads_messages(thread_uid: str | int) -> list[Message]:
     return await dialog_manager.compile_and_get_thread(thread_uid)
 
+@app.get('/api/threads/{thread_uid}/analysis')
+async def get_current_thread_analysis(
+    thread_uid: str | int, order_from: int = 0, order_to: int | None = None
+) -> Message:
+    analysis_instruction = await dialog_manager.get_thread_analysis_instruction(thread_uid)
+    full_origin_thread = await dialog_manager.get_origin_thread(thread_uid, order_from, order_to)
+
+    return await llm_api.get_thread_response([ analysis_instruction ] + full_origin_thread)
+
+
+class HiddenContextCreationStatus(BaseModel):
+    error: int
+    tokens_number: int
+    consistency_score: float | None = None
+    hook_alignment_score: float | None = None
+    logical_coherence_score: float | None = None
+    token_efficiency_score: float | None = None
+
+
+@app.post('/api/threads/{thread_uid}/hidden_context')
+async def create_hidden_context_for_thread(
+    thread_uid: str | int, context_message: Message
+) -> HiddenContextCreationStatus:
+
+    hidden_context_creation_instruciton = await dialog_manager.get_thread_hidden_context_creation_instruction(
+        thread_uid
+    )
+    current_thread = await dialog_manager.compile_and_get_thread(thread_uid)
+    hidden_context = await llm_api.make_hidden_context_message(
+        hidden_context_creation_instruciton, current_thread, context_message
+    )
+
+    await message_broker.store_hidden_context_message(hidden_context)
+    hidden_context_tokens_number = llm_api.count_single_message_tokens(hidden_context)
+
+    return HiddenContextCreationStatus(error=0, tokens_number=hidden_context_tokens_number)
+
+@app.get('/api/threads/{thread_uid}/hidden_context/consistency_check')
+async def check_consistancy_of_created_hidden_context(thread_uid: str | int) -> HiddenContextCreationStatus:
+
+    hidden_context_consistency_check_instruciton = (
+        await dialog_manager.get_thread_hidden_context_consistency_check_instruciton(thread_uid)
+    )
+    current_thread = await dialog_manager.compile_and_get_thread(thread_uid)
+    hidden_context = await dialog_manager.get_hidden_context_message(thread_uid)
+    hidden_context_tokens_number = llm_api.count_single_message_tokens(hidden_context)
+    hidden_context_check_result = await llm_api.make_hidden_context_check(
+        hidden_context_consistency_check_instruciton, current_thread, hidden_context
+    )
+
+    return HiddenContextCreationStatus(
+        error=0, tokens_number=hidden_context_tokens_number, **asdict(hidden_context_check_result)
+    )
+
 
 if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=_CONFIG.get_uvicorn_port(), reload=False)
+    uvicorn.run('main:app', host='0.0.0.0', port=_CONFIG.get_uvicorn_port(), reload=False, workers=1)

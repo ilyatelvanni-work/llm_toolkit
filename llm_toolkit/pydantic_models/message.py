@@ -9,6 +9,7 @@ class Role(StrEnum):
     user = 'user'
     system = 'system'
     archive = 'archive'
+    hidden = 'hidden'
 
 
 class Message(BaseModel):
@@ -17,6 +18,12 @@ class Message(BaseModel):
     role: Role
     text: str
     archive_for: list[int] | None = None
+
+    def __str__(self):
+        if self.role == Role.hidden:
+            return f'HIDDEN MESSAGE OF {self.thread_uid} thread'
+
+        return super().__str__()
 
 
 @dataclass

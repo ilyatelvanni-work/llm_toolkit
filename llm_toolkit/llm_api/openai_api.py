@@ -1,5 +1,6 @@
 import httpx
 import itertools
+import json
 import tiktoken
 import yaml
 from datetime import datetime as dt
@@ -7,16 +8,19 @@ from functools import partial, reduce
 from pathlib import Path
 from typing import Any, cast, Iterable, TypedDict
 
+
 # from models.dnd_time import DnDTime, MonthFR
 # from models.message import SceneModel, Message, MessageRole
 # from llm_api import LLMAPI, LLMMessage, LLMResponse
+import dacite
 from openai import AsyncOpenAI
 # from .model_prices import MODEL_PRICES
+
 from llm_toolkit.pydantic_models import Message, Role, SceneArchivingThread
 from .exceptions import LLMAPIError
 from ._llm_requests_logging import log_request, log_response
 
-from .llm_api import LLMAPI, _LLMMessage, _LLMResponse
+from .llm_api import HiddenContextConsistencyCheckResult, LLMAPI, _LLMMessage, _LLMResponse
 
 
 class OpenAIAPI(LLMAPI):
@@ -74,15 +78,48 @@ class OpenAIAPI(LLMAPI):
             archive_for=archive_for
         )
 
+    async def get_thread_response(self, thread: list[Message]) -> Message:
+        llm_response = await self.handle_response(self.convert_thread_into_llm_msgs(thread))
+        return Message(
+            thread_uid=thread[0].thread_uid, order=max(msg.order for msg in thread) + 1,
+            role=Role(llm_response['role']), text=llm_response['content']
+        )
+
+    async def make_hidden_context_message(
+        self, hidden_context_creation_instruction: Message, thread: list[Message], context_message: Message
+    ) -> Message:
+        llm_response = await self.handle_response(
+            self._make_hidden_context_creation_gpt_msgs(
+                hidden_context_creation_instruction, thread, context_message
+            )
+        )
+        return Message(
+            thread_uid=context_message.thread_uid, order=0, role=Role.hidden, text=llm_response['content']
+        )
+
+    async def make_hidden_context_check(
+        self, hidden_context_consistency_check_instruciton: Message, current_thread: list[Message],
+        hidden_context: Message
+    ) -> HiddenContextConsistencyCheckResult:
+        llm_response = await self.handle_response(
+            self._make_hidden_context_consistancy_check_gpt_msgs(
+                hidden_context_consistency_check_instruciton, current_thread, hidden_context
+            ), response_format=HiddenContextConsistencyCheckResult.json_schema
+        )
+        print('RESPONSE: ', llm_response)
+        return dacite.from_dict(
+            data_class=HiddenContextConsistencyCheckResult, data=json.loads(llm_response['content']),
+            config=dacite.Config(cast=[float])
+        )
 
     async def handle_response(
-        self, gpt_messages: list[_LLMMessage]# , functions: dict[str, Any] | None = None,
+        self, gpt_messages: list[_LLMMessage], response_format: Any = None# , functions: dict[str, Any] | None = None,
         # function_call: dict[str, str] | None = None
     ) -> _LLMResponse:
         assert gpt_messages
 
         response = await self._client.chat.completions.create(
-            model=self._model, messages=gpt_messages  # type: ignore[arg-type]
+            model=self._model, messages=gpt_messages, response_format=response_format  # type: ignore[arg-type]
             # , functions=functions, function_call=function_call
         )
 
@@ -164,9 +201,9 @@ class OpenAIAPI(LLMAPI):
 #             thread_uid, role, text, order, last_scene=scene, count_message_tokens_function=self.count_single_message_tokens, scene=scene.scene_number, **kwargs
 #         )
 
-#     def count_single_message_tokens(self, msg: Message) -> int:
-#         msg_gpt = self.msg_to_gpt_dict(msg)
-#         return len(self._encoding.encode(msg_gpt['role'])) + len(self._encoding.encode(msg_gpt['content'])) + 2
+    def count_single_message_tokens(self, msg: Message) -> int:
+        msg_gpt = self.msg_to_gpt_dict(msg, role=Role.user)
+        return len(self._encoding.encode(msg_gpt['role'])) + len(self._encoding.encode(msg_gpt['content'])) + 2
 
 #     def count_messages_request_tokens(self, messages: list[Message]) -> int:
 #         return sum(

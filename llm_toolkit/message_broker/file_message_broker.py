@@ -141,8 +141,39 @@ class FileMessageBroker(MessageBroker):
         # raise MessageIsNotFoundError(thread_uid, order, True)
 
     async def get_thread_archiving_instruction(self, thread_uid: str | int) -> Message:
-        with open(self._storage_path / 'archiving_instruction.txt') as fopen:
-            return Message(thread_uid=thread_uid, order=0, role=Role.system, text=fopen.read())
+        async with aiofiles.open(self._storage_path / 'archiving_instruction.txt', 'r') as fopen:
+            return Message(thread_uid=thread_uid, order=0, role=Role.system, text=await fopen.read())
+
+    async def get_origin_thread(
+        self, thread_uid: str | int, order_from: int = 0, order_to: int | None = None
+    ) -> list[Message]:
+        return [
+            msg for msg in await self.get_messages_by_thread_uid(thread_uid)
+                if msg.role != Role.archive and msg.order >= order_from and
+                (order_to is None or msg.order <= order_to)
+        ]
+
+    async def get_thread_analysis_instruction(self, thread_uid: str | int) -> Message:
+        async with aiofiles.open(self._storage_path / 'analysis_instruction.txt', 'r') as fopen:
+            return Message(thread_uid=thread_uid, order=0, role=Role.system, text=await fopen.read())
+
+    async def get_thread_hidden_context_creation_instruction(self, thread_uid: str | int) -> Message:
+        async with aiofiles.open(self._storage_path / 'hidden_context_creation_instruction.txt', 'r') as fopen:
+            return Message(thread_uid=thread_uid, order=0, role=Role.system, text=await fopen.read())
+
+    async def get_thread_hidden_context_consistency_check_instruciton(self, thread_uid: str | int) -> Message:
+        async with aiofiles.open(
+            self._storage_path / 'hidden_context_consistency_check_instruction.txt', 'r'
+        ) as fopen:
+            return Message(thread_uid=thread_uid, order=0, role=Role.system, text=await fopen.read())
+
+    async def store_hidden_context_message(self, hidden_context_message: Message) -> None:
+        async with aiofiles.open(self._storage_path / 'hidden_context.txt', 'w') as fopen:
+            await fopen.write(hidden_context_message.text)
+
+    async def get_hidden_context_message(self, thread_uid: str | int) -> Message:
+        async with aiofiles.open(self._storage_path / 'hidden_context.txt', 'r') as fopen:
+            return Message(thread_uid=thread_uid, order=0, role=Role.hidden, text=await fopen.read())
 
     # async def compile_background(self, thread_uid: str | int, to_order: int) -> list[Message]:
     #     files = sorted(f for f in self._storage_path.iterdir() if f.is_file()
