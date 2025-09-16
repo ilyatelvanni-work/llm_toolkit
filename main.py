@@ -3,7 +3,7 @@ import os
 import uvicorn
 from dataclasses import asdict
 from pathlib import Path
-from typing import Annotated, Iterable, Literal
+from typing import Annotated, cast, Iterable, Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +23,7 @@ openai_api_key = os.environ.get('OPENAI_API_KEY')
 assert openai_api_key, "There's no OpenAI API key provided"
 llm_api = OpenAIAPI(
     api_key = _CONFIG.get_openai_api_key(), proxy_uri=os.environ.get('LLM_PROXY_URI')
-) if False else MockLLMAPI()
+) if True else MockLLMAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -117,6 +117,7 @@ async def create_hidden_context_for_thread(
         thread_uid
     )
     current_thread = await dialog_manager.compile_and_get_thread(thread_uid)
+    # current_thread = [ msg for msg in current_thread if msg.order <= 100]
     hidden_context = await llm_api.make_hidden_context_message(
         hidden_context_creation_instruciton, current_thread, context_message
     )
@@ -142,6 +143,40 @@ async def check_consistancy_of_created_hidden_context(thread_uid: str | int) -> 
     return HiddenContextCreationStatus(
         error=0, tokens_number=hidden_context_tokens_number, **asdict(hidden_context_check_result)
     )
+
+@app.get('/api/threads/{thread_uid}/continuation')
+async def get_continuation_message(thread_uid: str | int) -> Message:
+    message_broker._filesystem_cache = message_broker._build_fiesystem_cache(thread_uid)
+
+    current_thread = await dialog_manager.compile_and_get_thread(thread_uid)
+
+    last_msg = current_thread[-1]
+    if last_msg.role == Role.assistant:
+        new_user_message = Message(
+            thread_uid=thread_uid, order=last_msg.order + 1, role=Role.user, text=''
+        )
+        await dialog_manager.add_message(new_user_message)
+        return new_user_message
+
+    elif last_msg.role == Role.user:
+        narration_instruction = await dialog_manager.get_conversation_instruction(thread_uid)
+        hidden_context = await dialog_manager.get_hidden_context_message(thread_uid)
+
+        archive_subthread = [ msg for msg in current_thread if (msg.role is Role.archive) or msg.order == 1 ]
+        conversation_subthread = [ msg for msg in current_thread[1:] if msg.role is not Role.archive ]
+
+        assert max(cast(list[int], archive_subthread[-1].archive_for)) + 1 == conversation_subthread[0].order
+
+        new_assistant_message = await llm_api.make_conversation_continuation_message(
+            narration_instruction, hidden_context, archive_subthread, conversation_subthread
+        )
+        assert new_assistant_message.role is Role.assistant
+
+        await dialog_manager.add_message(new_assistant_message)
+
+        return new_assistant_message
+
+    raise HTTPException(status_code=500, detail=f"Last thread's message has {last_msg.role} role")
 
 
 if __name__ == '__main__':

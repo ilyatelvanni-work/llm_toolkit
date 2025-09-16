@@ -77,3 +77,19 @@ class MockLLMAPI(LLMAPI):
             consistency_score=0.85, hook_alignment_score=0.58, logical_coherence_score = 0.92,
             token_efficiency_score=0.69
         )
+
+    async def make_conversation_continuation_message(
+        self, narration_instruction: Message, hidden_context: Message, archive_subthread: list[Message],
+        conversation_subthread: list[Message]
+    ) -> Message:
+        self.print_text(f"{'=' * 40}")
+        for msg in self._make_conversation_continuation_gpt_msgs(
+            narration_instruction, hidden_context, archive_subthread, conversation_subthread
+        ):
+            self.print_msg(msg)
+
+        return Message(
+            thread_uid=conversation_subthread[-1].thread_uid, order=conversation_subthread[-1].order + 1,
+            role=Role.assistant,
+            text=f'Some generated N {conversation_subthread[-1].order + 1} message {uuid.uuid4()} for thread'
+        )

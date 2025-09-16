@@ -65,3 +65,11 @@ class MessageBroker(ABC):
     @abstractmethod
     async def get_hidden_context_message(self, thread_uid: str | int) -> Message:
         pass
+
+    @abstractmethod
+    async def add_message(self, message: Message) -> Message:
+        pass
+
+    @abstractmethod
+    async def get_conversation_instruction(self, thread_uid: str | int) -> Message:
+        pass

@@ -175,6 +175,10 @@ class FileMessageBroker(MessageBroker):
         async with aiofiles.open(self._storage_path / 'hidden_context.txt', 'r') as fopen:
             return Message(thread_uid=thread_uid, order=0, role=Role.hidden, text=await fopen.read())
 
+    async def get_conversation_instruction(self, thread_uid: str | int) -> Message:
+        async with aiofiles.open(self._storage_path / 'conversation_instruction.txt', 'r') as fopen:
+            return Message(thread_uid=thread_uid, order=0, role=Role.system, text=await fopen.read())
+
     # async def compile_background(self, thread_uid: str | int, to_order: int) -> list[Message]:
     #     files = sorted(f for f in self._storage_path.iterdir() if f.is_file()
     #                         and f.name[:6].isdigit() and int(f.name[:6]) < to_order)
@@ -256,3 +260,12 @@ class FileMessageBroker(MessageBroker):
             await self.compile_few_shot_thread_by_index(thread_uid, i) for i in range(1, 2)
             # TODO: check how much shots do i actually have
         ]
+
+    async def add_message(self, message: Message) -> Message:
+
+        if await AsyncPath(self._get_filepath_for_message(message)).exists():
+            raise MessageBrokerError(f'Message with order {message.order} already exists')
+
+        await self._force_store_message(message)
+        self._filesystem_cache = self._build_fiesystem_cache(message.thread_uid)
+        return message

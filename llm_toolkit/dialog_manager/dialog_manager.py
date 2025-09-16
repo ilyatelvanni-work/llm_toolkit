@@ -100,3 +100,9 @@ class DialogManager:
 
     async def get_hidden_context_message(self, thread_uid: str | int) -> Message:
         return await self._message_broker.get_hidden_context_message(thread_uid)
+
+    async def add_message(self, message: Message) -> Message:
+        return await self._message_broker.add_message(message)
+
+    async def get_conversation_instruction(self, thread_uid: str | int) -> Message:
+        return await self._message_broker.get_conversation_instruction(thread_uid)

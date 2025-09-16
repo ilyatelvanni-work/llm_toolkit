@@ -22,10 +22,17 @@ class _LLMResponse(TypedDict):
 
 @dataclass
 class HiddenContextConsistencyCheckResult:
-    consistency_score: float
-    hook_alignment_score: float
-    logical_coherence_score: float
-    token_efficiency_score: float
+    consistency_with_background: float
+    logical_coherence: float
+    hook_alignment: float
+    mechanism_specificity: float
+    proof_sufficiency: float
+    scope_containment: float
+    difficulty_appropriateness: float
+    ambiguity_control: float
+    dryness_and_efficiency: float
+    temporal_and_spatial_clarity: float
+    verifiability_in_play: float
 
     json_schema: ClassVar[dict[str, Any]] = {
         "type": "json_schema",
@@ -34,13 +41,22 @@ class HiddenContextConsistencyCheckResult:
             "schema": {
                 "type": "object",
                 "properties": {
-                    "consistency_score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
-                    "hook_alignment_score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
-                    "logical_coherence_score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
-                    "token_efficiency_score": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+                    "consistency_with_background": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+                    "logical_coherence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+                    "hook_alignment": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+                    "mechanism_specificity": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+                    "proof_sufficiency": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+                    "scope_containment": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+                    "difficulty_appropriateness": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+                    "ambiguity_control": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+                    "dryness_and_efficiency": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+                    "temporal_and_spatial_clarity": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+                    "verifiability_in_play": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
                 },
                 "required": [
-                    "consistency_score", "hook_alignment_score", "logical_coherence_score", "token_efficiency_score"
+                    "consistency_with_background", "logical_coherence", "hook_alignment", "mechanism_specificity",
+                    "proof_sufficiency", "scope_containment", "difficulty_appropriateness", "ambiguity_control",
+                    "dryness_and_efficiency", "temporal_and_spatial_clarity", "verifiability_in_play"
                 ]
             }
         }
@@ -158,3 +174,21 @@ class LLMAPI(ABC):
         hidden_context_msg = cls.msg_to_gpt_dict(hidden_context, Role.user, prefix = '=== QUEST SUMMARING ===\n\n')
 
         return [ hidden_context_consistency_check_instruciton_msg, thread_llm_msg, hidden_context_msg ]
+
+    @abstractmethod
+    async def make_conversation_continuation_message(
+        self, narration_instruction: Message, hidden_context: Message, archive_subthread: list[Message],
+        conversation_subthread: list[Message]
+    ) -> Message:
+        pass
+
+    @classmethod
+    def _make_conversation_continuation_gpt_msgs(
+        cls, narration_instruction: Message, hidden_context: Message, archive_subthread: list[Message],
+        conversation_subthread: list[Message]
+    ) -> list[_LLMMessage]:
+        conversation_instruction_msg = cls.msg_to_gpt_dict(narration_instruction)
+        conversation_instruction_msg['content'] += '\n\n=== CURRENT QUEST ===\n\n' + hidden_context.text
+        archive_msg = cls.join_messages_seq_to_gpt_msg(archive_subthread, Role.user, '=== ARCHIVE ===\n\n')
+        conversation_msgs = [ cls.msg_to_gpt_dict(msg) for msg in conversation_subthread ]
+        return [ conversation_instruction_msg ] + [ archive_msg ] + conversation_msgs

@@ -106,10 +106,23 @@ class OpenAIAPI(LLMAPI):
                 hidden_context_consistency_check_instruciton, current_thread, hidden_context
             ), response_format=HiddenContextConsistencyCheckResult.json_schema
         )
-        print('RESPONSE: ', llm_response)
         return dacite.from_dict(
             data_class=HiddenContextConsistencyCheckResult, data=json.loads(llm_response['content']),
             config=dacite.Config(cast=[float])
+        )
+
+    async def make_conversation_continuation_message(
+        self, narration_instruction: Message, hidden_context: Message, archive_subthread: list[Message],
+        conversation_subthread: list[Message]
+    ) -> Message:
+        llm_response = await self.handle_response(
+            self._make_conversation_continuation_gpt_msgs(
+                narration_instruction, hidden_context, archive_subthread, conversation_subthread
+            )
+        )
+        return Message(
+            thread_uid=conversation_subthread[-1].thread_uid, order=conversation_subthread[-1].order + 1,
+            role=Role(llm_response['role']), text=llm_response['content']
         )
 
     async def handle_response(
@@ -118,8 +131,9 @@ class OpenAIAPI(LLMAPI):
     ) -> _LLMResponse:
         assert gpt_messages
 
-        response = await self._client.chat.completions.create(
-            model=self._model, messages=gpt_messages, response_format=response_format  # type: ignore[arg-type]
+        response = await self._client.chat.completions.create(  # type: ignore[arg-type]
+            model=self._model, messages=gpt_messages,
+            service_tier="flex", response_format=response_format
             # , functions=functions, function_call=function_call
         )
 
