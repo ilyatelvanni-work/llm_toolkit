@@ -213,3 +213,5 @@ __marimo__/
 llm_toolkit/dialog
 llm_toolkit/llm_api/http_full_logs
 llm_toolkit/llm_api/chosen_full_http_logs
+data_volumes/*
+!data_volumes/.gitkeep

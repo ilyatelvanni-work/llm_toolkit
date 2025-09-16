@@ -1,6 +1,29 @@
 # version: "3.8"
 
 services:
+  neo4j:
+    image: neo4j:latest
+    ports:
+      - "${NEO4J_WEB_UI}:7474"
+      - "${NEO4J_BOLT}:7687"
+    environment:
+      ADMIN_PASSWORD: ${NEO4J_ADMIN_PASSWORD}
+      LLM_APP_USER_LOGIN: ${NEO4J_LOGIN}
+      LLM_APP_USER_PASSWORD: ${NEO4J_PASSWORD}
+      LLM_APP_DATABASE: ${NEO4J_DB}
+      NEO4J_AUTH: "neo4j/${NEO4J_ADMIN_PASSWORD}"
+    networks:
+      - internal_only
+    stop_grace_period: 2s
+    volumes:
+      - ./data_volumes/neo4j/data:/data
+      - ./data_volumes/neo4j/logs:/logs
+      - ./data_volumes/neo4j/import:/import
+      - ./data_volumes/neo4j/plugins:/plugins
+      - ./data_volumes/neo4j-init.sh:/docker-entrypoint-initdb.d/init.sh
+    # entrypoint: [ "bash", "-c", "ls -l /docker-entrypoint-initdb.d"]
+    entrypoint: [ "bash", "-c", "/docker-entrypoint-initdb.d/init.sh && exec /startup/docker-entrypoint.sh neo4j" ]
+
   app:
     build:
       context: .
